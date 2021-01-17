@@ -5,43 +5,42 @@ provider "azurerm" {
 provider "random" {
 }
 
-module "location_centralus" {
+module "locations" {
   source = "./location"
 
-  web_server_location      = "centralus"
-  web_server_rg            = "${var.web_server_rg}-centralus"
-  resource_prefix          = "${var.resource_prefix}-centralus"
-  web_server_address_space = "1.0.0.0/22"
+  for_each = var.location_settings
+
+  web_server_location      = each.value.location
+  web_server_rg            = "${var.web_server_rg}-${each.key}"
+  resource_prefix          = "${var.resource_prefix}-${each.key}"
+  web_server_address_space = each.value.address_space
   web_server_name          = var.web_server_name
   environment              = var.environment
   web_server_count         = var.web_server_count
-  web_server_subnets = {
-    web-server         = "1.0.1.0/24"
-    AzureBastionSubnet = "1.0.2.0/24"
-  }
+  web_server_subnets       = each.value.subnets
   terraform_script_version = var.terraform_script_version
   admin_password           = data.azurerm_key_vault_secret.admin_password.value
   domain_name_label        = var.domain_name_label
 }
 
-module "location_eastus2" {
-  source = "./location"
+# module "location_eastus2" {
+#   source = "./location"
 
-  web_server_location      = "eastus2"
-  web_server_rg            = "${var.web_server_rg}-eastus2"
-  resource_prefix          = "${var.resource_prefix}-eastus2"
-  web_server_address_space = "2.0.0.0/22"
-  web_server_name          = var.web_server_name
-  environment              = var.environment
-  web_server_count         = var.web_server_count
-  web_server_subnets = {
-    web-server         = "2.0.1.0/24"
-    AzureBastionSubnet = "2.0.2.0/24"
-  }
-  terraform_script_version = var.terraform_script_version
-  admin_password           = data.azurerm_key_vault_secret.admin_password.value
-  domain_name_label        = var.domain_name_label
-}
+#   web_server_location      = "eastus2"
+#   web_server_rg            = "${var.web_server_rg}-eastus2"
+#   resource_prefix          = "${var.resource_prefix}-eastus2"
+#   web_server_address_space = "2.0.0.0/22"
+#   web_server_name          = var.web_server_name
+#   environment              = var.environment
+#   web_server_count         = var.web_server_count
+#   web_server_subnets = {
+#     web-server         = "2.0.1.0/24"
+#     AzureBastionSubnet = "2.0.2.0/24"
+#   }
+#   terraform_script_version = var.terraform_script_version
+#   admin_password           = data.azurerm_key_vault_secret.admin_password.value
+#   domain_name_label        = var.domain_name_label
+# }
 
 resource "azurerm_resource_group" "global_rg" {
   name     = "traffic-manager-rg"
@@ -65,20 +64,21 @@ resource "azurerm_traffic_manager_profile" "traffic_manager" {
   }
 }
 
-resource "azurerm_traffic_manager_endpoint" "traffic_manager_centralus" {
-  name                = "${var.resource_prefix}-centralus-endpoint"
+resource "azurerm_traffic_manager_endpoint" "traffic_manager" {
+  for_each            = var.location_settings
+  name                = "${var.resource_prefix}-${each.key}-endpoint"
   resource_group_name = azurerm_resource_group.global_rg.name
   profile_name        = azurerm_traffic_manager_profile.traffic_manager.name
-  target_resource_id  = module.location_centralus.web_server_lb_public_ip_id
+  target_resource_id  = module.locations[each.key].web_server_lb_public_ip_id
   type                = "azureEndpoints"
   weight              = 100
 }
 
-resource "azurerm_traffic_manager_endpoint" "traffic_manager_eastus2" {
-  name                = "${var.resource_prefix}-eastus2-endpoint"
-  resource_group_name = azurerm_resource_group.global_rg.name
-  profile_name        = azurerm_traffic_manager_profile.traffic_manager.name
-  target_resource_id  = module.location_eastus2.web_server_lb_public_ip_id
-  type                = "azureEndpoints"
-  weight              = 100
-}
+# resource "azurerm_traffic_manager_endpoint" "traffic_manager_eastus2" {
+#   name                = "${var.resource_prefix}-eastus2-endpoint"
+#   resource_group_name = azurerm_resource_group.global_rg.name
+#   profile_name        = azurerm_traffic_manager_profile.traffic_manager.name
+#   target_resource_id  = module.location_eastus2.web_server_lb_public_ip_id
+#   type                = "azureEndpoints"
+#   weight              = 100
+# }

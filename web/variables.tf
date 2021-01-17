@@ -29,3 +29,14 @@ variable "terraform_script_version" {
 variable "domain_name_label" {
   type = string
 }
+
+variable "location_settings" {
+  type = map(object(
+    {
+      location      = string
+      address_space = string
+      subnets       = map(string)
+    }
+  ))
+
+}
