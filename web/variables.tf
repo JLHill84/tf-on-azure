@@ -38,5 +38,4 @@ variable "location_settings" {
       subnets       = map(string)
     }
   ))
-
 }
